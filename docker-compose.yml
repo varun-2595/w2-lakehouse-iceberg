@@ -38,7 +38,7 @@ services:
       retries: 5
 
   rest-catalog:
-    image: tabulario/iceberg-rest:0.6.0
+    image: apache/iceberg-rest-fixture:latest
     container_name: iceberg_rest_catalog
     ports:
       - "8181:8181"
