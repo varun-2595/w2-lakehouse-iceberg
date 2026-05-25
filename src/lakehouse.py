@@ -16,7 +16,8 @@ from src.config import (
     CATALOG_NAME, CATALOG_TYPE, CATALOG_URI, WAREHOUSE_PATH,
     NS_BRONZE, NS_SILVER, NS_GOLD,
     TABLE_BRONZE_TRIPS, TABLE_SILVER_TRIPS,
-    TABLE_GOLD_VOLUME, TABLE_GOLD_REVENUE, TABLE_GOLD_DRIVER_STATS
+    TABLE_GOLD_VOLUME, TABLE_GOLD_REVENUE, TABLE_GOLD_DRIVER_STATS,
+    S3_REGION
 )
 
 logger = logging.getLogger(__name__)
@@ -86,7 +87,8 @@ def get_catalog():
             "s3.endpoint": os.environ.get("S3_ENDPOINT_URL", "http://localhost:9000"),
             "s3.access-key-id": os.environ.get("S3_ACCESS_KEY", "minioadmin"),
             "s3.secret-access-key": os.environ.get("S3_SECRET_KEY", "minioadmin"),
-            "s3.path-style-access": "true"
+            "s3.path-style-access": "true",
+            "s3.region": S3_REGION
         })
         
     return load_catalog(CATALOG_NAME, **properties)
@@ -97,8 +99,37 @@ def setup_name_mapping(table):
     with table.transaction() as tx:
         tx.set_properties({"schema.name-mapping.default": mapping.model_dump_json()})
 
+def ensure_bucket():
+    """Ensures that the MinIO warehouse bucket exists when running in Docker mode."""
+    from src.config import RUNNING_IN_DOCKER, S3_ENDPOINT_URL, S3_ACCESS_KEY, S3_SECRET_KEY
+    if not RUNNING_IN_DOCKER:
+        return
+    
+    import boto3
+    from botocore.exceptions import ClientError
+    
+    logger.info("Verifying MinIO bucket 'warehouse' exists...")
+    s3_client = boto3.client(
+        "s3",
+        endpoint_url=S3_ENDPOINT_URL,
+        aws_access_key_id=S3_ACCESS_KEY,
+        aws_secret_access_key=S3_SECRET_KEY,
+        region_name="us-east-1"
+    )
+    try:
+        s3_client.create_bucket(Bucket="warehouse")
+        logger.info("MinIO Bucket 'warehouse' created successfully.")
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "")
+        if code in ("BucketAlreadyOwnedByYou", "BucketAlreadyExists"):
+            logger.info("MinIO Bucket 'warehouse' already exists.")
+        else:
+            logger.error(f"Error checking/creating MinIO bucket: {e}")
+            raise
+
 def initialize_lakehouse():
     """Creates namespaces and base medallion tables if they don't exist."""
+    ensure_bucket()
     catalog = get_catalog()
     logger.info("Initializing lakehouse namespaces and tables...")
     
