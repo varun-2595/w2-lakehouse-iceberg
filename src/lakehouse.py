@@ -83,7 +83,7 @@ def get_catalog():
     # Add S3 configurations in Docker mode
     if CATALOG_TYPE == "rest":
         properties.update({
-            "s3.endpoint": os.environ.get("S3_ENDPOINT_URL", "http://minio:9000"),
+            "s3.endpoint": os.environ.get("S3_ENDPOINT_URL", "http://localhost:9000"),
             "s3.access-key-id": os.environ.get("S3_ACCESS_KEY", "minioadmin"),
             "s3.secret-access-key": os.environ.get("S3_SECRET_KEY", "minioadmin"),
             "s3.region": "us-east-1"

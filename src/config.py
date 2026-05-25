@@ -14,11 +14,11 @@ if RUNNING_IN_DOCKER:
     # Docker Production Setup (REST catalog + MinIO S3)
     CATALOG_NAME = "demo"
     CATALOG_TYPE = "rest"
-    CATALOG_URI = os.environ.get("REST_CATALOG_URI", "http://rest-catalog:8181")
+    CATALOG_URI = os.environ.get("REST_CATALOG_URI", "http://localhost:8181")
     WAREHOUSE_PATH = "s3a://warehouse/"
     
     # MinIO / S3 config
-    S3_ENDPOINT_URL = os.environ.get("S3_ENDPOINT_URL", "http://minio:9000")
+    S3_ENDPOINT_URL = os.environ.get("S3_ENDPOINT_URL", "http://localhost:9000")
     S3_ACCESS_KEY = os.environ.get("S3_ACCESS_KEY", "minioadmin")
     S3_SECRET_KEY = os.environ.get("S3_SECRET_KEY", "minioadmin")
     S3_REGION = "us-east-1"
