@@ -59,6 +59,8 @@ services:
       - CATALOG_JDBC_PASSWORD=postgres
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadmin
+      - AWS_REGION=us-east-1
+      - AWS_DEFAULT_REGION=us-east-1
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8181/v1/config"]
       interval: 15s
