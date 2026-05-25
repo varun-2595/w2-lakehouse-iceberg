@@ -21,7 +21,7 @@ if RUNNING_IN_DOCKER:
     S3_ENDPOINT_URL = os.environ.get("S3_ENDPOINT_URL", "http://localhost:9000")
     S3_ACCESS_KEY = os.environ.get("S3_ACCESS_KEY", "minioadmin")
     S3_SECRET_KEY = os.environ.get("S3_SECRET_KEY", "minioadmin")
-    S3_REGION = "us-east-1"
+    S3_REGION = None
 else:
     # Local Simulation Setup (SQL catalog + SQLite + Local filesystem)
     CATALOG_NAME = "local_catalog"
