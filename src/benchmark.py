@@ -79,20 +79,33 @@ def run_benchmark():
     num_runs = 50
     latency_unpart = 0.0
     
-    if not RUNNING_IN_DOCKER:
-        local_table_path = os.path.join(WAREHOUSE_PATH, "gold", "zone_revenue_summary")
-        conn = duckdb.connect()
-        conn.execute("INSTALL iceberg; LOAD iceberg;")
-        conn.execute("SET unsafe_enable_version_guessing = true;")
+    if RUNNING_IN_DOCKER:
+        table_path = "s3://warehouse/gold/zone_revenue_summary"
+    else:
+        table_path = os.path.join(WAREHOUSE_PATH, "gold", "zone_revenue_summary").replace(os.sep, "/")
         
-        # Warmup run
-        conn.execute(f"SELECT * FROM iceberg_scan('{local_table_path.replace(os.sep, '/')}') WHERE PULocationID = {target_zone}").fetchall()
+    logger.info(f"Setting up DuckDB query benchmark on: {table_path}")
+    conn = duckdb.connect()
+    conn.execute("INSTALL iceberg; LOAD iceberg;")
+    conn.execute("SET unsafe_enable_version_guessing = true;")
+    
+    if RUNNING_IN_DOCKER:
+        conn.execute("INSTALL httpfs; LOAD httpfs;")
+        conn.execute("SET s3_endpoint = 'localhost:9000';")
+        conn.execute("SET s3_access_key_id = 'minioadmin';")
+        conn.execute("SET s3_secret_access_key = 'minioadmin';")
+        conn.execute("SET s3_use_ssl = false;")
+        conn.execute("SET s3_url_style = 'path';")
+        conn.execute("SET s3_region = 'us-east-1';")
         
-        t0 = time.perf_counter()
-        for _ in range(num_runs):
-            conn.execute(f"SELECT * FROM iceberg_scan('{local_table_path.replace(os.sep, '/')}') WHERE PULocationID = {target_zone}").fetchall()
-        latency_unpart = (time.perf_counter() - t0) / num_runs * 1000 # in ms
-        logger.info(f"Unpartitioned Query Latency: {latency_unpart:.4f} ms")
+    # Warmup run
+    conn.execute(f"SELECT * FROM iceberg_scan('{table_path}') WHERE PULocationID = {target_zone}").fetchall()
+    
+    t0 = time.perf_counter()
+    for _ in range(num_runs):
+        conn.execute(f"SELECT * FROM iceberg_scan('{table_path}') WHERE PULocationID = {target_zone}").fetchall()
+    latency_unpart = (time.perf_counter() - t0) / num_runs * 1000 # in ms
+    logger.info(f"Unpartitioned Query Latency: {latency_unpart:.4f} ms")
         
     # ----------------------------------------------------
     # Stage B: Partitioned by PULocationID
@@ -116,15 +129,14 @@ def run_benchmark():
     t_gold_part.append(pa.Table.from_pandas(df_revenue_sorted, preserve_index=False))
     
     latency_part = 0.0
-    if not RUNNING_IN_DOCKER:
-        # Re-warmup
-        conn.execute(f"SELECT * FROM iceberg_scan('{local_table_path.replace(os.sep, '/')}') WHERE PULocationID = {target_zone}").fetchall()
-        
-        t0 = time.perf_counter()
-        for _ in range(num_runs):
-            conn.execute(f"SELECT * FROM iceberg_scan('{local_table_path.replace(os.sep, '/')}') WHERE PULocationID = {target_zone}").fetchall()
-        latency_part = (time.perf_counter() - t0) / num_runs * 1000 # in ms
-        logger.info(f"Partitioned Query Latency: {latency_part:.4f} ms")
+    # Re-warmup
+    conn.execute(f"SELECT * FROM iceberg_scan('{table_path}') WHERE PULocationID = {target_zone}").fetchall()
+    
+    t0 = time.perf_counter()
+    for _ in range(num_runs):
+        conn.execute(f"SELECT * FROM iceberg_scan('{table_path}') WHERE PULocationID = {target_zone}").fetchall()
+    latency_part = (time.perf_counter() - t0) / num_runs * 1000 # in ms
+    logger.info(f"Partitioned Query Latency: {latency_part:.4f} ms")
         
     speedup = ((latency_unpart - latency_part) / latency_unpart) * 100 if latency_unpart > 0 else 0.0
     logger.info(f"Benchmark results: Speedup of {speedup:.2f}% achieved via partitioning & sorting!")

@@ -47,33 +47,44 @@ def run_time_travel_query(snapshot_id):
     
     # 2. DuckDB Time Travel Scan
     duckdb_count = -1
-    if not RUNNING_IN_DOCKER:
-        # Locally, we can scan the folder directly using DuckDB
-        local_table_path = os.path.join(WAREHOUSE_PATH, "silver", "taxi_trips")
-        logger.info(f"Running DuckDB time travel query on folder: {local_table_path}")
+    if RUNNING_IN_DOCKER:
+        table_path = "s3://warehouse/silver/taxi_trips"
+    else:
+        table_path = os.path.join(WAREHOUSE_PATH, "silver", "taxi_trips").replace(os.sep, "/")
         
-        conn = duckdb.connect()
-        conn.execute("INSTALL iceberg; LOAD iceberg;")
-        conn.execute("SET unsafe_enable_version_guessing = true;")
+    logger.info(f"Running DuckDB time travel query on: {table_path}")
+    
+    conn = duckdb.connect()
+    conn.execute("INSTALL iceberg; LOAD iceberg;")
+    conn.execute("SET unsafe_enable_version_guessing = true;")
+    
+    if RUNNING_IN_DOCKER:
+        conn.execute("INSTALL httpfs; LOAD httpfs;")
+        conn.execute("SET s3_endpoint = 'localhost:9000';")
+        conn.execute("SET s3_access_key_id = 'minioadmin';")
+        conn.execute("SET s3_secret_access_key = 'minioadmin';")
+        conn.execute("SET s3_use_ssl = false;")
+        conn.execute("SET s3_url_style = 'path';")
+        conn.execute("SET s3_region = 'us-east-1';")
         
-        try:
-            # In DuckDB, we can specify the snapshot ID in the scan parameters
-            query = f"""
-                SELECT COUNT(*) FROM iceberg_scan(
-                    '{local_table_path.replace(os.sep, "/")}',
-                    snapshot_from_id = {snapshot_id}
-                )
-            """
-            duckdb_count = conn.execute(query).fetchone()[0]
-            logger.info(f"DuckDB Time-Travel count: {duckdb_count} rows")
-        except Exception as e:
-            logger.error(f"Failed to query time-travel with DuckDB: {e}")
+    try:
+        # In DuckDB, we can specify the snapshot ID in the scan parameters
+        query = f"""
+            SELECT COUNT(*) FROM iceberg_scan(
+                '{table_path}',
+                snapshot_from_id = {snapshot_id}
+            )
+        """
+        duckdb_count = conn.execute(query).fetchone()[0]
+        logger.info(f"DuckDB Time-Travel count: {duckdb_count} rows")
+    except Exception as e:
+        logger.error(f"Failed to query time-travel with DuckDB: {e}")
+        if not RUNNING_IN_DOCKER:
             # Fallback to metadata JSON file path time travel if parameters fail
             try:
                 # Find metadata file
-                meta_dir = os.path.join(local_table_path, "metadata")
+                meta_dir = os.path.join(table_path, "metadata")
                 logger.info(f"Fallback to searching metadata files in {meta_dir}")
-                # We can load by passing version or parsing metadata
                 pass
             except Exception:
                 pass
