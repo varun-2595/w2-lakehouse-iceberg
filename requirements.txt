@@ -1,0 +1,8 @@
+pyiceberg[sql,pyarrow]==0.11.1
+duckdb==1.5.3
+pandas==3.0.3
+requests==2.34.2
+jinja2==3.1.5
+boto3==1.43.14
+psycopg2-binary==2.9.12
+sqlalchemy==2.0.50
