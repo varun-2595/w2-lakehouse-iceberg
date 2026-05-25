@@ -53,7 +53,10 @@ services:
       - CATALOG_S3__ACCESS__KEY__ID=minioadmin
       - CATALOG_S3__SECRET__ACCESS__KEY=minioadmin
       - CATALOG_S3__PATH__STYLE__ACCESS=true
+      - CATALOG_S3__PATH_STYLE_ACCESS=true
+      - CATALOG_S3_PATH__STYLE__ACCESS=true
       - CATALOG_S3__REGION=us-east-1
+      - CATALOG_CLIENT__REGION=us-east-1
       - CATALOG_CATALOG__IMPL=org.apache.iceberg.jdbc.JdbcCatalog
       - CATALOG_URI=jdbc:postgresql://postgres:5432/catalog_db
       - CATALOG_JDBC_USER=postgres
