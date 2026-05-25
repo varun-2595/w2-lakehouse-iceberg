@@ -15,7 +15,7 @@ if RUNNING_IN_DOCKER:
     CATALOG_NAME = "demo"
     CATALOG_TYPE = "rest"
     CATALOG_URI = os.environ.get("REST_CATALOG_URI", "http://localhost:8181")
-    WAREHOUSE_PATH = "s3a://warehouse/"
+    WAREHOUSE_PATH = "s3://warehouse/"
     
     # MinIO / S3 config
     S3_ENDPOINT_URL = os.environ.get("S3_ENDPOINT_URL", "http://localhost:9000")
